@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>일일 복권</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* 오프닝 시작 카드 모달 */
+        .start-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.4s ease, visibility 0.4s;
+        }
+        .start-overlay.hidden-overlay {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .start-card {
+            width: 480px;
+            height: 280px;
+            background: linear-gradient(135deg, #e3c182 0%, #a2723a 50%, #4a2f13 100%);
+            border: 4px solid #fce8b3;
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(252, 232, 179, 0.4), inset 0 0 15px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 20px;
+            text-align: center;
+        }
+        .start-card::before {
+            content: '';
+            position: absolute;
+            top: 10px; left: 10px; right: 10px; bottom: 10px;
+            border: 2px dashed #6b471d;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+        .start-title {
+            font-size: 36px;
+            font-weight: bold;
+            color: #4a2800;
+            text-shadow: 1px 1px 0px #ffe8ad, -1px -1px 0px #ffe8ad, 0 3px 6px rgba(0,0,0,0.4);
+            margin-bottom: 25px;
+            letter-spacing: 2px;
+        }
+        .start-btn {
+            padding: 12px 45px;
+            background: linear-gradient(to bottom, #7a5828, #3b240c);
+            border: 2px solid #ffe8ad;
+            border-radius: 25px;
+            color: #ffe8ad;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+            transition: all 0.2s;
+            z-index: 2;
+        }
+        .start-btn:hover {
+            transform: scale(1.08);
+            background: linear-gradient(to bottom, #9c7238, #543513);
+            box-shadow: 0 0 20px #ffe8ad;
+        }
+
+        /* 화면 흔들림 효과 */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        .shaking {
+            animation: shake 0.5s ease-in-out infinite;
+        }
+
+        /* 치지직 글리치 효과 */
+        @keyframes glitch {
+            0% { opacity: 1; transform: skew(0deg); filter: invert(0); }
+            20% { opacity: 0.8; transform: skew(10deg); filter: invert(0.8); }
+            40% { opacity: 0.3; transform: skew(-15deg); }
+            60% { opacity: 0.9; transform: skew(5deg); filter: invert(0.2); }
+            80% { opacity: 0.4; transform: skew(-5deg); }
+            100% { opacity: 1; transform: skew(0deg); filter: invert(0); }
+        }
+        .glitch-effect {
+            animation: glitch 0.15s infinite;
+            color: #ff3333 !important;
+            font-weight: bold;
+        }
+
+        .lottery-container {
+            width: 580px;
+            background: linear-gradient(145deg, #2a221b, #17120e);
+            border: 2px solid #8c6d3f;
+            border-radius: 8px;
+            padding: 15px 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            position: relative;
+            z-index: 1;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #5a4528;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #d4b170;
+            margin: 0 auto;
+        }
+        .round-info {
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            font-size: 12px;
+            color: #8a7b66;
+        }
+        .main-content {
+            display: flex;
+            gap: 20px;
+        }
+        .board-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .grid-wrapper {
+            display: grid;
+            grid-template-columns: 35px repeat(3, 55px);
+            grid-gap: 8px;
+            align-items: center;
+            justify-items: center;
+        }
+        .arrow-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #3a2e23;
+            border: 1px solid #7a6239;
+            color: #d4b170;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .arrow-btn:hover:not(.disabled) {
+            background: #5c4937;
+            border-color: #e6bf75;
+            box-shadow: 0 0 8px rgba(230, 191, 117, 0.5);
+        }
+        .arrow-btn.selected {
+            background: #a37c3f;
+            color: #fff;
+            box-shadow: 0 0 10px #e6bf75;
+        }
+        .arrow-btn.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .tile {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #e6c88b 0%, #a67c42 100%);
+            border: 2px solid #5c4321;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #8b0000;
+            cursor: pointer;
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.4), 0 3px 6px rgba(0,0,0,0.5);
+            transition: transform 0.1s;
+        }
+        .tile.hidden {
+            color: transparent;
+            background: radial-gradient(circle, #d4b17a 0%, #8c632e 100%);
+        }
+        .tile.hidden:hover {
+            transform: scale(1.05);
+        }
+        .tile.open {
+            background: #f4e8c1;
+            color: #8b0000;
+            border-color: #b8860b;
+        }
+        .tile.highlight {
+            background: #ffe082;
+            box-shadow: 0 0 12px #ffb300;
+        }
+        .instruction {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #b0a090;
+            height: 20px;
+        }
+        .action-btn {
+            margin-top: 10px;
+            padding: 6px 40px;
+            background: linear-gradient(to bottom, #4a3b2c, #2a2017);
+            border: 1px solid #7a6239;
+            border-radius: 15px;
+            color: #8a7b66;
+            font-weight: bold;
+            cursor: not-allowed;
+        }
+        .action-btn.active {
+            background: linear-gradient(to bottom, #8c6d3f, #4a3b2c);
+            color: #fff;
+            border-color: #d4b170;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(212, 177, 112, 0.4);
+        }
+
+        /* Reward Table */
+        .reward-section {
+            flex-grow: 1;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid #4a3b2c;
+            border-radius: 5px;
+            padding: 8px 12px;
+        }
+        .reward-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #d4b170;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .reward-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-gap: 2px 15px;
+            font-size: 12px;
+        }
+        .reward-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .reward-item.win {
+            background-color: #d4b170;
+            color: #000;
+            font-weight: bold;
+        }
+        .reward-sum {
+            color: #e0c080;
+        }
+        .reward-item.win .reward-sum, .reward-item.win .reward-val {
+            color: #000;
+        }
+        .reward-val {
+            color: #ffffff;
+        }
+        
+        .arrow-diag-top { transform: rotate(45deg); }
+        .arrow-down { transform: rotate(90deg); }
+        .arrow-right { transform: rotate(0deg); }
+
+        /* 폭죽 Canvas */
+        #fireworks-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* 당첨 팝업 모달 */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: linear-gradient(145deg, #3a2b1d, #1f150c);
+            border: 3px solid #f3c262;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 0 30px #f3c262;
+            max-width: 400px;
+            transform: scale(0.8);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+        .modal-title {
+            font-size: 22px;
+            color: #ffd700;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #ff9900;
+        }
+        .modal-body {
+            font-size: 16px;
+            color: #fff;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+        .modal-btn {
+            padding: 12px 25px;
+            background: linear-gradient(to bottom, #f3c262, #b8860b);
+            border: none;
+            border-radius: 20px;
+            color: #000;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: all 0.2s;
+        }
+        .modal-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px #ffd700;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 시작 팝업 오버레이 -->
+<div class="start-overlay" id="start-overlay">
+    <div class="start-card">
+        <div class="start-title">일일 복권</div>
+        <button class="start-btn" onclick="startGame()">시작하기</button>
+    </div>
+</div>
+
+<canvas id="fireworks-canvas"></canvas>
+
+<div class="lottery-container" id="lottery-box">
+    <div class="header">
+        <div class="title">일일 복권</div>
+        <div class="round-info">제407회</div>
+    </div>
+    
+    <div class="main-content">
+        <div class="board-section">
+            <div class="grid-wrapper">
+                <div class="arrow-btn arrow-diag-top" data-line="d1">➔</div>
+                <div class="arrow-btn arrow-down" data-line="c0">➔</div>
+                <div class="arrow-btn arrow-down" data-line="c1">➔</div>
+                <div class="arrow-btn arrow-down" data-line="c2">➔</div>
+
+                <div class="arrow-btn arrow-right" data-line="r0">➔</div>
+                <div class="tile hidden" data-r="0" data-c="0"></div>
+                <div class="tile hidden" data-r="0" data-c="1"></div>
+                <div class="tile hidden" data-r="0" data-c="2"></div>
+
+                <div class="arrow-btn arrow-right" data-line="r1">➔</div>
+                <div class="tile hidden" data-r="1" data-c="0"></div>
+                <div class="tile hidden" data-r="1" data-c="1"></div>
+                <div class="tile hidden" data-r="1" data-c="2"></div>
+
+                <div class="arrow-btn arrow-right" data-line="r2">➔</div>
+                <div class="tile hidden" data-r="2" data-c="0"></div>
+                <div class="tile hidden" data-r="2" data-c="1"></div>
+                <div class="tile hidden" data-r="2" data-c="2"></div>
+            </div>
+
+            <div class="instruction" id="instruction-text">원하는 칸을 3개 긁어보세요.</div>
+            <button class="action-btn" id="confirm-btn">결정</button>
+        </div>
+
+        <div class="reward-section">
+            <div class="reward-title">보상 목록</div>
+            <div class="reward-list" id="reward-list"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 당첨 축하 팝업 -->
+<div class="modal-overlay" id="win-modal">
+    <div class="modal-content">
+        <div class="modal-title">🎉 축하합니다!! 🎉</div>
+        <div class="modal-body">
+            <strong>피난처 부대 가입권</strong>에 당첨되셨습니다!
+        </div>
+        <button class="modal-btn" onclick="goToGuildPage()">부대 가입하러 가기 ➔</button>
+    </div>
+</div>
+
+<script>
+    const rewardsData = {
+        6: '10,000 MGP', 7: '36 MGP', 8: '720 MGP', 9: '360 MGP', 10: '80 MGP',
+        11: '252 MGP', 12: '108 MGP', 13: '72 MGP', 14: '54 MGP', 15: '180 MGP',
+        16: '72 MGP', 17: '180 MGP', 18: '119 MGP', 19: '36 MGP', 20: '306 MGP',
+        21: '1,080 MGP', 22: '144 MGP', 23: '1,800 MGP', 24: '3,600 MGP'
+    };
+
+    let gameState = 'SCRATCH';
+    let userOpenedCount = 0;
+    let selectedLine = null;
+    let fullBoard = Array(3).fill(null).map(() => Array(3).fill(null));
+
+    // 제공된 MP3 파일 데이터를 직접 포함한 오디오 객체 (무한 반복 설정)
+    const audioPlayer = new Audio('data:audio/mp3;base64,SUQ3BAAAAAAAI1RQRTEAAAAPAAAANS0wOSBQYS1QYXlhAABUVEIyAAAAEAAAADUtMDkgUGEtUGF5YQC1M... (Base64 Data)');
+    audioPlayer.loop = true;
+
+    // [시작하기] 버튼 클릭 시 음원 재생
+    function startGame() {
+        audioPlayer.play().catch(e => console.log("Audio play error:", e));
+
+        const startOverlay = document.getElementById('start-overlay');
+        startOverlay.classList.add('hidden-overlay');
+    }
+
+    function initBoard() {
+        const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+        for (let i = nums.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [nums[i], nums[j]] = [nums[j], nums[i]];
+        }
+        
+        let idx = 0;
+        for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 3; c++) {
+                fullBoard[r][c] = nums[idx++];
+            }
+        }
+
+        const randomR = Math.floor(Math.random() * 3);
+        const randomC = Math.floor(Math.random() * 3);
+        const initialTile = document.querySelector(`.tile[data-r="${randomR}"][data-c="${randomC}"]`);
+        
+        initialTile.textContent = fullBoard[randomR][randomC];
+        initialTile.classList.remove('hidden');
+        initialTile.classList.add('open');
+    }
+
+    function renderRewards() {
+        const listEl = document.getElementById('reward-list');
+        let html = '';
+        for (let sum = 6; sum <= 24; sum++) {
+            html += `
+                <div class="reward-item" id="reward-${sum}">
+                    <span class="reward-sum">${sum}</span>
+                    <span class="reward-val" id="reward-val-${sum}">${rewardsData[sum]}</span>
+                </div>
+            `;
+        }
+        listEl.innerHTML = html;
+    }
+
+    function setArrowsEnabled(enabled) {
+        document.querySelectorAll('.arrow-btn').forEach(btn => {
+            if (enabled) btn.classList.remove('disabled');
+            else btn.classList.add('disabled');
+        });
+    }
+
+    // 타일 클릭 이벤트
+    document.querySelectorAll('.tile').forEach(tile => {
+        tile.addEventListener('click', function() {
+            if (gameState !== 'SCRATCH') return;
+            if (this.classList.contains('open')) return;
+            if (userOpenedCount >= 3) return;
+
+            const r = parseInt(this.dataset.r);
+            const c = parseInt(this.dataset.c);
+
+            this.textContent = fullBoard[r][c];
+            this.classList.remove('hidden');
+            this.classList.add('open');
+            userOpenedCount++;
+
+            const remaining = 3 - userOpenedCount;
+            const instructionEl = document.getElementById('instruction-text');
+
+            if (remaining > 0) {
+                instructionEl.textContent = `원하는 칸을 ${remaining}개 긁어보세요.`;
+            } else {
+                gameState = 'SELECT_LINE';
+                instructionEl.textContent = '라인을 선택하세요.';
+                setArrowsEnabled(true);
+            }
+        });
+    });
+
+    document.querySelectorAll('.arrow-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (gameState !== 'SELECT_LINE') return;
+
+            document.querySelectorAll('.arrow-btn').forEach(b => b.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedLine = this.dataset.line;
+
+            document.getElementById('confirm-btn').classList.add('active');
+        });
+    });
+
+    function getLineCells(lineKey) {
+        if (lineKey === 'r0') return [[0,0], [0,1], [0,2]];
+        if (lineKey === 'r1') return [[1,0], [1,1], [1,2]];
+        if (lineKey === 'r2') return [[2,0], [2,1], [2,2]];
+        if (lineKey === 'c0') return [[0,0], [1,0], [2,0]];
+        if (lineKey === 'c1') return [[0,1], [1,1], [2,1]];
+        if (lineKey === 'c2') return [[0,2], [1,2], [2,2]];
+        if (lineKey === 'd1') return [[0,0], [1,1], [2,2]];
+        return [];
+    }
+
+    // [결정] 버튼 클릭 시 연출 실행
+    document.getElementById('confirm-btn').addEventListener('click', function() {
+        if (gameState !== 'SELECT_LINE' || !selectedLine) return;
+
+        gameState = 'FINISHED';
+        this.classList.remove('active');
+        setArrowsEnabled(false);
+
+        const lineCells = getLineCells(selectedLine);
+        let actualSum = 0;
+
+        for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 3; c++) {
+                const tile = document.querySelector(`.tile[data-r="${r}"][data-c="${c}"]`);
+                tile.textContent = fullBoard[r][c];
+                tile.classList.remove('hidden');
+                tile.classList.add('open');
+
+                if (lineCells.some(([lr, lc]) => lr === r && lc === c)) {
+                    tile.classList.add('highlight');
+                    actualSum += fullBoard[r][c];
+                }
+            }
+        }
+
+        // 연출: 화면 흔들림 + 글리치 연출
+        const box = document.getElementById('lottery-box');
+        const targetValEl = document.getElementById(`reward-val-${actualSum}`);
+        
+        box.classList.add('shaking');
+        targetValEl.classList.add('glitch-effect');
+
+        let glitchCount = 0;
+        const glitchInterval = setInterval(() => {
+            targetValEl.textContent = Math.random() > 0.5 ? 'ERR_0x6F' : '피난처부대가입권';
+            glitchCount++;
+            if (glitchCount > 12) {
+                clearInterval(glitchInterval);
+                targetValEl.textContent = '피난처 부대 가입권';
+                targetValEl.classList.remove('glitch-effect');
+                box.classList.remove('shaking');
+
+                const winRow = document.getElementById(`reward-${actualSum}`);
+                if (winRow) winRow.classList.add('win');
+
+                // 폭죽 및 팝업 노출
+                setTimeout(() => {
+                    startFireworks();
+                    document.getElementById('win-modal').classList.add('show');
+                }, 800);
+            }
+        }, 100);
+    });
+
+    function goToGuildPage() {
+        window.open('https://ff14shelter.wixsite.com/0407', '_blank');
+    }
+
+    // 폭죽 애니메이션
+    function startFireworks() {
+        const canvas = document.getElementById('fireworks-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particles = [];
+        const colors = ['#ffd700', '#ff3366', '#33ccff', '#ff9900', '#33ff33'];
+
+        function createFirework(x, y) {
+            for (let i = 0; i < 60; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 2;
+                particles.push({
+                    x: x, y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    alpha: 1,
+                    decay: Math.random() * 0.02 + 0.015
+                });
+            }
+        }
+
+        createFirework(canvas.width * 0.3, canvas.height * 0.4);
+        setTimeout(() => createFirework(canvas.width * 0.7, canvas.height * 0.3), 200);
+        setTimeout(() => createFirework(canvas.width * 0.5, canvas.height * 0.5), 400);
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.08;
+                p.alpha -= p.decay;
+
+                ctx.globalAlpha = Math.max(0, p.alpha);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (p.alpha <= 0) particles.splice(index, 1);
+            });
+
+            if (particles.length > 0) requestAnimationFrame(animate);
+        }
+        animate();
+    }
+
+    // 초기 실행
+    initBoard();
+    renderRewards();
+    setArrowsEnabled(false);
+</script>
+
+</body>
+</html>

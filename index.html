@@ -21,7 +21,6 @@
             overflow: hidden;
         }
 
-        /* 오프닝 시작 카드 모달 */
         .start-overlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -87,7 +86,6 @@
             box-shadow: 0 0 20px #ffe8ad;
         }
 
-        /* 화면 흔들림 효과 */
         @keyframes shake {
             0% { transform: translate(1px, 1px) rotate(0deg); }
             10% { transform: translate(-1px, -2px) rotate(-1deg); }
@@ -105,7 +103,6 @@
             animation: shake 0.5s ease-in-out infinite;
         }
 
-        /* 치지직 글리치 효과 */
         @keyframes glitch {
             0% { opacity: 1; transform: skew(0deg); filter: invert(0); }
             20% { opacity: 0.8; transform: skew(10deg); filter: invert(0.8); }
@@ -251,7 +248,6 @@
             box-shadow: 0 0 8px rgba(212, 177, 112, 0.4);
         }
 
-        /* Reward Table */
         .reward-section {
             flex-grow: 1;
             background: rgba(0, 0, 0, 0.2);
@@ -297,18 +293,14 @@
         .arrow-down { transform: rotate(90deg); }
         .arrow-right { transform: rotate(0deg); }
 
-        /* 폭죽 Canvas */
         #fireworks-canvas {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
             pointer-events: none;
             z-index: 10;
         }
 
-        /* 당첨 팝업 모달 */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -372,7 +364,8 @@
 </head>
 <body>
 
-<!-- 시작 팝업 오버레이 -->
+<audio id="bgm-audio" src="./bgm.mp3" loop preload="auto"></audio>
+
 <div class="start-overlay" id="start-overlay">
     <div class="start-card">
         <div class="start-title">일일 복권</div>
@@ -423,7 +416,6 @@
     </div>
 </div>
 
-<!-- 당첨 축하 팝업 -->
 <div class="modal-overlay" id="win-modal">
     <div class="modal-content">
         <div class="modal-title">🎉 축하합니다!! 🎉</div>
@@ -435,6 +427,112 @@
 </div>
 
 <script>
+    let audioCtx = null;
+
+    function initAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function playScratchSound() {
+        if (!audioCtx) return;
+        const bufferSize = audioCtx.sampleRate * 0.12;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 1200;
+        filter.Q.value = 3;
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        noise.start();
+    }
+
+    function playGlitchSound() {
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.setValueAtTime(400, now + 0.05);
+        osc.frequency.setValueAtTime(1200, now + 0.1);
+        osc.frequency.setValueAtTime(300, now + 0.15);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+    }
+
+    function playFireworkBoom() {
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.3);
+
+        gain.gain.setValueAtTime(0.6, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+    }
+
+    function playClappingSound() {
+        if (!audioCtx) return;
+        const clapTimes = [0, 0.1, 0.22, 0.35, 0.5, 0.65];
+        clapTimes.forEach(delay => {
+            setTimeout(() => {
+                const bufferSize = audioCtx.sampleRate * 0.05;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 1000;
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                noise.start();
+            }, delay * 1000);
+        });
+    }
+
     const rewardsData = {
         6: '10,000 MGP', 7: '36 MGP', 8: '720 MGP', 9: '360 MGP', 10: '80 MGP',
         11: '252 MGP', 12: '108 MGP', 13: '72 MGP', 14: '54 MGP', 15: '180 MGP',
@@ -447,13 +545,13 @@
     let selectedLine = null;
     let fullBoard = Array(3).fill(null).map(() => Array(3).fill(null));
 
-    // 제공된 MP3 파일 데이터를 직접 포함한 오디오 객체 (무한 반복 설정)
-    const audioPlayer = new Audio('data:audio/mp3;base64,SUQ3BAAAAAAAI1RQRTEAAAAPAAAANS0wOSBQYS1QYXlhAABUVEIyAAAAEAAAADUtMDkgUGEtUGF5YQC1M... (Base64 Data)');
-    audioPlayer.loop = true;
-
-    // [시작하기] 버튼 클릭 시 음원 재생
     function startGame() {
-        audioPlayer.play().catch(e => console.log("Audio play error:", e));
+        initAudioContext();
+        const audio = document.getElementById('bgm-audio');
+        if (audio) {
+            audio.volume = 0.1; // 소리 반으로 감소
+            audio.play().catch(e => console.log("Audio play error:", e));
+        }
 
         const startOverlay = document.getElementById('start-overlay');
         startOverlay.classList.add('hidden-overlay');
@@ -503,12 +601,13 @@
         });
     }
 
-    // 타일 클릭 이벤트
     document.querySelectorAll('.tile').forEach(tile => {
         tile.addEventListener('click', function() {
             if (gameState !== 'SCRATCH') return;
             if (this.classList.contains('open')) return;
             if (userOpenedCount >= 3) return;
+
+            playScratchSound();
 
             const r = parseInt(this.dataset.r);
             const c = parseInt(this.dataset.c);
@@ -554,7 +653,6 @@
         return [];
     }
 
-    // [결정] 버튼 클릭 시 연출 실행
     document.getElementById('confirm-btn').addEventListener('click', function() {
         if (gameState !== 'SELECT_LINE' || !selectedLine) return;
 
@@ -579,7 +677,6 @@
             }
         }
 
-        // 연출: 화면 흔들림 + 글리치 연출
         const box = document.getElementById('lottery-box');
         const targetValEl = document.getElementById(`reward-val-${actualSum}`);
         
@@ -588,6 +685,7 @@
 
         let glitchCount = 0;
         const glitchInterval = setInterval(() => {
+            playGlitchSound();
             targetValEl.textContent = Math.random() > 0.5 ? 'ERR_0x6F' : '피난처부대가입권';
             glitchCount++;
             if (glitchCount > 12) {
@@ -596,12 +694,18 @@
                 targetValEl.classList.remove('glitch-effect');
                 box.classList.remove('shaking');
 
+                // 피난처부대가입권으로 변경되는 순간 BGM 정지
+                const audio = document.getElementById('bgm-audio');
+                if (audio) {
+                    audio.pause();
+                }
+
                 const winRow = document.getElementById(`reward-${actualSum}`);
                 if (winRow) winRow.classList.add('win');
 
-                // 폭죽 및 팝업 노출
                 setTimeout(() => {
                     startFireworks();
+                    playClappingSound();
                     document.getElementById('win-modal').classList.add('show');
                 }, 800);
             }
@@ -612,7 +716,6 @@
         window.open('https://ff14shelter.wixsite.com/0407', '_blank');
     }
 
-    // 폭죽 애니메이션
     function startFireworks() {
         const canvas = document.getElementById('fireworks-canvas');
         const ctx = canvas.getContext('2d');
@@ -623,6 +726,7 @@
         const colors = ['#ffd700', '#ff3366', '#33ccff', '#ff9900', '#33ff33'];
 
         function createFirework(x, y) {
+            playFireworkBoom();
             for (let i = 0; i < 60; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const speed = Math.random() * 6 + 2;
@@ -663,7 +767,6 @@
         animate();
     }
 
-    // 초기 실행
     initBoard();
     renderRewards();
     setArrowsEnabled(false);
